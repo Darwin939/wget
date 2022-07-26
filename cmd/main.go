@@ -1,8 +1,12 @@
 package main
 
-import "wget/pkg/downloader"
+import (
+	"os"
+	"wget/pkg/downloader"
+	"wget/pkg/presenter"
+)
+
 // import "flag"
-import "os"
 
 
 func main() {
@@ -10,7 +14,9 @@ func main() {
 	url := os.Args[1]
 
 	// 2. init downloader
-	Downloader := downloader.NewDownloader(url)
-	Downloader.Download()
+	presenter := presenter.NewCLIPresenter()
+
+	downloader := downloader.NewDownloader(url, presenter)
+	downloader.Download()
 	//
 }

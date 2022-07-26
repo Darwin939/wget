@@ -1,22 +1,72 @@
 package presenter
 
+import (
+	"fmt"
+	"time"
 
-type presenter interface {
+	"github.com/schollz/progressbar/v3"
+)
+
+type Presenter interface {
 	ShowStartTime()
-	ShowRequestStatus()
-	ShowContentSize()
-	ShowName()
-
-	ShowFinishTime()
+	ShowRequestStatus(statusCode int)
+	ShowContentSize(contentSize int64)
+	ShowName(fullFilePath string)
+	ShowProgress()
+	ShowFinishTime([]string)
+	GetBar(ContentLength int64) *progressbar.ProgressBar
 }
-
 
 type CLIPresenter struct {
+}
+
+func NewCLIPresenter() Presenter {
+
+	return &CLIPresenter{}
+}
+
+func (c *CLIPresenter) ShowStartTime() {
+	currentTime := time.Now()
+
+	fmt.Printf("start at %v\n", currentTime.Format("2006-01-02 15:04:05"))
+}
+
+func (c *CLIPresenter) ShowRequestStatus(statusCode int) {
+	if statusCode >= 200 && statusCode <= 299 {
+		fmt.Printf("sending request, awaiting response... status %v \n", statusCode)
+	} else {
+		fmt.Printf("sending request, awaiting response... status %v \n", statusCode, "something goes wrong")
+	}
 
 }
 
+func (c *CLIPresenter) ShowContentSize(contentSize int64) {
+	mb := (float64(contentSize) / 1024) / 1024
+	fmt.Printf("content size:  %v [±%fMB]\n", contentSize, mb)
 
-func NewCLIPresenter() presenter {
+}
 
-	return &CLIPresenter{}
+func (c *CLIPresenter) ShowName(fullFilePath string) {
+
+	fmt.Printf("saving file to: %v\n", fullFilePath)
+}
+
+func (c *CLIPresenter) ShowFinishTime(files []string) {
+	currentTime := time.Now()
+
+	fmt.Printf("Downloaded %v\n", files)
+
+	fmt.Printf("finished at %v\n", currentTime.Format("2006-01-02 15:04:05"))
+
+}
+
+func (c *CLIPresenter) ShowProgress() {
+
+}
+
+func (c *CLIPresenter) GetBar(ContentLength int64) *progressbar.ProgressBar {
+	return progressbar.DefaultBytes(
+		ContentLength,
+		"downloading",
+	)
 }

@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"wget/pkg/presenter"
 )
 
 type DownloaderI interface {
 	Download()
-	get()
+	get() *http.Response
 	save()
 	log()
 }
@@ -23,15 +24,20 @@ type Downloader struct {
 	Filename     string
 	Path         string
 	SpeedLimit   string
+	fullFilePath string
+
+	Presenter presenter.Presenter
 }
 
-func NewDownloader(url string) DownloaderI {
+func NewDownloader(url string, presenter presenter.Presenter) DownloaderI {
 
-	return &Downloader{Url: url}
+	return &Downloader{Url: url, Presenter: presenter}
 }
 
 func (d *Downloader) Download() {
 	// if is file
+	d.Presenter.ShowStartTime()
+
 	if !d.IsFilename {
 		_, filename := path.Split(d.Url)
 		d.Filename = filename
@@ -44,28 +50,38 @@ func (d *Downloader) Download() {
 
 	defer file.Close()
 
+	resp := d.get()
+
+	d.Presenter.ShowRequestStatus(resp.StatusCode)
+	d.Presenter.ShowContentSize(resp.ContentLength)
+
+	defer resp.Body.Close()
+
+	_, err = io.Copy(io.MultiWriter(file, d.Presenter.GetBar(resp.ContentLength)), resp.Body)
+	if err != nil {
+		log.Println(err)
+	}
+	d.Presenter.ShowName(d.generateFileFullPath())
+
+	if err != nil {
+		log.Println(err)
+	}
+	d.Presenter.ShowFinishTime([]string{d.Url})
+}
+
+func (d *Downloader) get() *http.Response {
 	resp, err := http.Get(d.Url)
 	if err != nil {
 		log.Println(err)
 	}
-
-	defer resp.Body.Close()
-
-	_, err = io.Copy(file, resp.Body)
-	if err != nil {
-		log.Println(err)
-	}
-
-
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-func (d *Downloader) get() {
-
+	return resp
 }
 
 func (d *Downloader) save() {}
 
 func (d *Downloader) log() {}
+
+func (d *Downloader) generateFileFullPath() string {
+
+	return ""
+}
