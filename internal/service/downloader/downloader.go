@@ -6,15 +6,8 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"wget/pkg/presenter"
+	"wget/internal/service"
 )
-
-type DownloaderI interface {
-	Download()
-	get() *http.Response
-	save()
-	log()
-}
 
 type Downloader struct {
 	Url          string
@@ -26,10 +19,10 @@ type Downloader struct {
 	SpeedLimit   string
 	fullFilePath string
 
-	Presenter presenter.Presenter
+	Presenter service.Presenter
 }
 
-func NewDownloader(url string, presenter presenter.Presenter) DownloaderI {
+func NewDownloader(url string, presenter service.Presenter) *Downloader {
 
 	return &Downloader{Url: url, Presenter: presenter}
 }
