@@ -7,20 +7,10 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-type Presenter interface {
-	ShowStartTime()
-	ShowRequestStatus(statusCode int)
-	ShowContentSize(contentSize int64)
-	ShowName(fullFilePath string)
-	ShowProgress()
-	ShowFinishTime([]string)
-	GetBar(ContentLength int64) *progressbar.ProgressBar
-}
-
 type CLIPresenter struct {
 }
 
-func NewCLIPresenter() Presenter {
+func NewCLIPresenter() *CLIPresenter {
 
 	return &CLIPresenter{}
 }
