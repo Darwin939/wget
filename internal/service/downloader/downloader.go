@@ -1,12 +1,17 @@
 package downloader
 
 import (
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path"
+	"strconv"
+	"strings"
 	"wget/internal/service"
+
+	"github.com/mxk/go-flowrate/flowrate"
 )
 
 type Downloader struct {
@@ -50,7 +55,18 @@ func (d *Downloader) Download() {
 
 	defer resp.Body.Close()
 
-	_, err = io.Copy(io.MultiWriter(file, d.Presenter.GetBar(resp.ContentLength)), resp.Body)
+	body := resp.Body
+
+	if d.IsSpeedLimit {
+		speedLimit, err := calculateSpeedLimit(d.SpeedLimit)
+		
+		if err != nil {
+			log.Println(err)
+		}
+		body = flowrate.NewReader(resp.Body, speedLimit)
+	}
+
+	_, err = io.Copy(io.MultiWriter(file, d.Presenter.GetBar(resp.ContentLength)), body)
 	if err != nil {
 		log.Println(err)
 	}
@@ -77,4 +93,27 @@ func (d *Downloader) log() {}
 func (d *Downloader) generateFileFullPath() string {
 
 	return ""
+}
+
+
+// calculates bytes per second
+func calculateSpeedLimit(speed string) (int64, error) {
+	if strings.HasPrefix(speed, "k") || strings.HasPrefix(speed, "K") {
+		num, err := strconv.Atoi(speed[:len(speed)-1])
+		if err != nil {
+			return -1 , errors.New("wrong speed limit argument")
+		}
+
+		return int64(num * 1024), nil
+	} else if strings.HasPrefix(speed, "m") || strings.HasPrefix(speed, "M") {
+		num, err := strconv.Atoi(speed[:len(speed)-1])
+		if err != nil {
+			return -1 , errors.New("wrong speed limit argument")
+		}
+
+		return int64(num * 1024 * 1024), nil
+	}
+
+	return -1, errors.New("wrong speed limit argument")
+
 }
