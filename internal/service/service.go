@@ -15,3 +15,7 @@ type Presenter interface {
 	ShowFinishTime([]string)
 	GetBar(ContentLength int64) *progressbar.ProgressBar
 }
+
+type Mirrorer interface {
+	CreateMirror()
+}
