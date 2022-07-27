@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"wget/internal/service"
+	"wget/internal/service/parser"
 
 	"github.com/mxk/go-flowrate/flowrate"
 )
@@ -23,13 +24,36 @@ type Downloader struct {
 	Path         string
 	SpeedLimit   string
 	fullFilePath string
+	IsSaveFrom   bool
+	IsMirror     bool
+	IsReject     bool
+	IsExclude    bool
+	SaveFrom     string
+	Reject       string
+	Exclude      string
 
 	Presenter service.Presenter
 }
 
-func NewDownloader(url string, presenter service.Presenter) *Downloader {
+func NewDownloader(flag *parser.Flags, presenter service.Presenter) *Downloader {
 
-	return &Downloader{Url: url, Presenter: presenter}
+	return &Downloader{Url: flag.Url,
+		Presenter:    presenter,
+		IsFilename:   flag.IsFilename,
+		IsPathPassed: flag.IsPathPassed,
+		IsSpeedLimit: flag.IsSpeedLimit,
+		Filename:     flag.Filename,
+		Path:         flag.Path,
+		IsMirror:     flag.IsMirror,
+		IsSaveFrom:   flag.IsSaveFrom,
+		IsReject:     flag.IsReject,
+		IsExclude:    flag.IsExclude,
+		SaveFrom:     flag.SaveFrom,
+		Reject:       flag.Reject,
+		Exclude:      flag.Exclude,
+		SpeedLimit:   flag.SpeedLimit,
+		// TODO а есть удобный метод распаковки
+	}
 }
 
 func (d *Downloader) Download() {
@@ -58,8 +82,9 @@ func (d *Downloader) Download() {
 	body := resp.Body
 
 	if d.IsSpeedLimit {
+
 		speedLimit, err := calculateSpeedLimit(d.SpeedLimit)
-		
+
 		if err != nil {
 			log.Println(err)
 		}
@@ -95,20 +120,19 @@ func (d *Downloader) generateFileFullPath() string {
 	return ""
 }
 
-
 // calculates bytes per second
 func calculateSpeedLimit(speed string) (int64, error) {
-	if strings.HasPrefix(speed, "k") || strings.HasPrefix(speed, "K") {
+	if strings.HasSuffix(speed, "k") || strings.HasSuffix(speed, "K") {
 		num, err := strconv.Atoi(speed[:len(speed)-1])
 		if err != nil {
-			return -1 , errors.New("wrong speed limit argument")
+			return -1, errors.New("wrong speed limit argument")
 		}
 
 		return int64(num * 1024), nil
-	} else if strings.HasPrefix(speed, "m") || strings.HasPrefix(speed, "M") {
+	} else if strings.HasSuffix(speed, "m") || strings.HasSuffix(speed, "M") {
 		num, err := strconv.Atoi(speed[:len(speed)-1])
 		if err != nil {
-			return -1 , errors.New("wrong speed limit argument")
+			return -1, errors.New("wrong speed limit argument")
 		}
 
 		return int64(num * 1024 * 1024), nil
