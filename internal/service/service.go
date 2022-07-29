@@ -1,6 +1,10 @@
 package service
 
-import "github.com/schollz/progressbar/v3"
+import (
+	"github.com/schollz/progressbar/v3"
+	"io"
+	"net/http"
+)
 
 type Downloader interface {
 	Download()
@@ -18,4 +22,8 @@ type Presenter interface {
 
 type Mirrorer interface {
 	CreateMirror()
+}
+
+type HTTPClient interface {
+	SendHttp1(method string, url string, body io.Reader) (*http.Response, error)
 }
