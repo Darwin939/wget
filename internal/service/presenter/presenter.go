@@ -31,6 +31,10 @@ func (c *CLIPresenter) ShowRequestStatus(statusCode int) {
 }
 
 func (c *CLIPresenter) ShowContentSize(contentSize int64) {
+	if contentSize == -1 {
+		fmt.Printf("content size unreachable\n")
+		return
+	}
 	mb := (float64(contentSize) / 1024) / 1024
 	fmt.Printf("content size:  %v [±%fMB]\n", contentSize, mb)
 
