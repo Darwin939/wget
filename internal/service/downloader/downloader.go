@@ -31,6 +31,7 @@ type Downloader struct {
 	IsMirror     bool
 	IsReject     bool
 	IsExclude    bool
+	IsBackground bool
 	SaveFrom     string
 	Reject       string
 	Exclude      string
@@ -55,6 +56,7 @@ func NewDownloader(flag *parser.Flags, presenter service.Presenter) *Downloader 
 		Reject:       flag.Reject,
 		Exclude:      flag.Exclude,
 		SpeedLimit:   flag.SpeedLimit,
+		IsBackground: flag.IsBackground,
 		// TODO а есть удобный метод распаковки
 	}
 }
@@ -62,6 +64,10 @@ func NewDownloader(flag *parser.Flags, presenter service.Presenter) *Downloader 
 func (d *Downloader) Download(url string) {
 	// if is file
 	d.Presenter.ShowStartTime()
+
+	if d.IsBackground {
+		
+	}
 
 	if !d.IsFilename { // -O
 		_, filename := path.Split(url)
