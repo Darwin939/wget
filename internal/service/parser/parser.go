@@ -1,6 +1,10 @@
 package parser
 
-import "strings"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+)
 
 type Flags struct {
 	Url          string // http https ftp
@@ -64,6 +68,11 @@ func get_Path(args []string) string {
 		if strings.HasPrefix(v, "-P=") {
 			ans += v[3:]
 		}
+	}
+
+	if ans != "" && ans[0] == '~' {
+		dirname, _ := os.UserHomeDir()
+		ans = filepath.Join(dirname, ans[1:])
 	}
 
 	return ans
