@@ -2,50 +2,84 @@ package mirrorer
 
 import (
 	"fmt"
-	"strings"
+	"github.com/gabriel-vasile/mimetype"
+	"io"
+	"net/http"
+	"os"
+	"path"
+	"wget/internal/service"
 )
 
 type Mirrorer struct {
-	Excluded      []string
-	Reject        []string
-	ExcludedRegex string
-	RejectRegex   string
-	URL           string
+	excludedRegex string
+	rejectRegex   string
+	url           string
+	excluded      []string
+	reject        []string
+	cli           service.HTTPClient
+	presenter     service.Presenter
 }
 
-func NewMirrorer(url string, excluded, reject []string) *Mirrorer {
+func NewMirrorer(cli service.HTTPClient, presenter service.Presenter, url string, excluded, reject []string) *Mirrorer {
 	return &Mirrorer{
-		Excluded: excluded,
-		Reject:   reject,
-		URL:      url,
+		excluded:  excluded,
+		reject:    reject,
+		url:       url,
+		cli:       cli,
+		presenter: presenter,
 	}
 }
 
-func (m *Mirrorer) CreateMirror() {
+func (m *Mirrorer) CreateMirror() error {
 	m.initRegex()
+	url := validateURL(m.url)
+	filePath := convertToPath(url)
+	dir, filename := path.Split(filePath)
+	//fmt.Println("dir:", dir, "filename:", filename)
+	var folders = dir
+	if dir == "" {
+		folders = filename
+	}
+	if err := os.MkdirAll(folders, os.ModePerm); err != nil {
+		return err
+	}
+	if err := m.download(url, folders, filename); err != nil {
+		return err
+	}
+	return nil
+}
+func (m *Mirrorer) download(url, path, name string) error {
+	m.presenter.ShowStartTime()
+	resp, err := m.cli.SendHttp1(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	m.presenter.ShowRequestStatus(resp.StatusCode)
+	m.presenter.ShowContentSize(resp.ContentLength)
+	mtype, err := mimetype.DetectReader(resp.Body)
+	if err != nil {
+		return err
+	}
+	if mtype.Is("text/html") {
+		name = "index.html"
+	}
 
+	file, err := os.Create(fmt.Sprintf("%s/%s", path, name))
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(io.MultiWriter(file, m.presenter.GetBar(resp.ContentLength)), resp.Body)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *Mirrorer) initRegex() {
 	//TODO find optimal way for creating regex
-	m.ExcludedRegex = regexBuilder(`\.`, m.Excluded)
-	m.RejectRegex = regexBuilder(`\/`, m.Reject)
-}
+	m.excludedRegex = regexBuilder(`\.`, m.excluded)
+	m.rejectRegex = regexBuilder(`\/`, m.reject)
 
-func regexBuilder(delim string, params []string) string {
-	if len(params) == 0 {
-		return ""
-	}
-	res := strings.Builder{}
-	res.WriteString("[^(")
-	if len(params[0]) != 0 {
-		res.WriteString(fmt.Sprintf("(%s%s)", delim, params[0]))
-	}
-	for _, v := range params[1:] {
-		if len(v) != 0 {
-			res.WriteString(fmt.Sprintf("|(%s%s)", delim, v))
-		}
-	}
-	res.WriteString(")]")
-	return res.String()
 }
