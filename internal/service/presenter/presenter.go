@@ -27,7 +27,6 @@ func (c *CLIPresenter) ShowRequestStatus(statusCode int) {
 	} else {
 		fmt.Printf("sending request, awaiting response... status %v something goes wrong\n", statusCode)
 	}
-
 }
 
 func (c *CLIPresenter) ShowContentSize(contentSize int64) {
