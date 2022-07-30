@@ -1,14 +1,18 @@
 package downloader
 
 import (
+	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"wget/internal/service"
 	"wget/internal/service/parser"
 
@@ -16,7 +20,6 @@ import (
 )
 
 type Downloader struct {
-	Url          string
 	IsFilename   bool
 	IsPathPassed bool
 	IsSpeedLimit bool
@@ -37,7 +40,7 @@ type Downloader struct {
 
 func NewDownloader(flag *parser.Flags, presenter service.Presenter) *Downloader {
 
-	return &Downloader{Url: flag.Url,
+	return &Downloader{
 		Presenter:    presenter,
 		IsFilename:   flag.IsFilename,
 		IsPathPassed: flag.IsPathPassed,
@@ -56,23 +59,24 @@ func NewDownloader(flag *parser.Flags, presenter service.Presenter) *Downloader 
 	}
 }
 
-func (d *Downloader) Download() {
+func (d *Downloader) Download(url string) {
 	// if is file
 	d.Presenter.ShowStartTime()
 
-	if !d.IsFilename {
-		_, filename := path.Split(d.Url)
+	if !d.IsFilename { // -O
+		_, filename := path.Split(url)
 		d.Filename = filename
 	}
-
-	file, err := os.Create(d.Filename)
+	log.Printf("create file: %v\n", filepath.Join(d.Path, d.Filename))
+	file, err := os.Create(filepath.Join(d.Path, d.Filename))
 	if err != nil {
 		log.Println(err)
+		return
 	}
 
 	defer file.Close()
 
-	resp := d.get()
+	resp := d.get(url)
 
 	d.Presenter.ShowRequestStatus(resp.StatusCode)
 	d.Presenter.ShowContentSize(resp.ContentLength)
@@ -87,6 +91,7 @@ func (d *Downloader) Download() {
 
 		if err != nil {
 			log.Println(err)
+			return
 		}
 		body = flowrate.NewReader(resp.Body, speedLimit)
 	}
@@ -94,17 +99,20 @@ func (d *Downloader) Download() {
 	_, err = io.Copy(io.MultiWriter(file, d.Presenter.GetBar(resp.ContentLength)), body)
 	if err != nil {
 		log.Println(err)
+		return
 	}
 	d.Presenter.ShowName(d.generateFileFullPath())
 
 	if err != nil {
 		log.Println(err)
+		return
 	}
-	d.Presenter.ShowFinishTime([]string{d.Url})
+	d.Presenter.ShowFinishTime([]string{url})
 }
 
-func (d *Downloader) get() *http.Response {
-	resp, err := http.Get(d.Url)
+func (d *Downloader) get(url string) *http.Response {
+
+	resp, err := http.Get(url)
 	if err != nil {
 		log.Println(err)
 	}
@@ -117,7 +125,7 @@ func (d *Downloader) log() {}
 
 func (d *Downloader) generateFileFullPath() string {
 
-	return ""
+	return filepath.Join(d.Path, d.Filename)
 }
 
 // calculates bytes per second
@@ -140,4 +148,44 @@ func calculateSpeedLimit(speed string) (int64, error) {
 
 	return -1, errors.New("wrong speed limit argument")
 
+}
+
+func (d *Downloader) DownloadFromFile() {
+	var urls []string
+
+	f, err := os.Open(d.SaveFrom)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	scanner.Split(bufio.ScanWords)
+
+	for scanner.Scan() {
+		urls = append(urls, scanner.Text())
+	}
+
+	log.Printf("savefrom: %v\n", urls)
+
+	if err := scanner.Err(); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < len(urls); i++ {
+		wg.Add(1)
+
+		go func(url string) {
+			defer wg.Done()
+			// d.Url = urls[i]
+			d.Download(url)
+		}(urls[i])
+	}
+	wg.Wait()
 }

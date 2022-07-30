@@ -2,13 +2,13 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"wget/internal/service"
 	"wget/internal/service/downloader"
 	"wget/internal/service/presenter"
 
 	"wget/internal/service/parser"
-
 )
 
 type App struct {
@@ -32,5 +32,15 @@ func (a *App) Run(ctx context.Context) {
 	presenter := presenter.NewCLIPresenter()
 
 	downloader := downloader.NewDownloader(flags, presenter)
-	downloader.Download()
+	switch {
+	case downloader.IsSaveFrom: // -i flag
+		fmt.Println("case 1")
+		downloader.DownloadFromFile()
+	case downloader.IsMirror:
+		fmt.Println("case 2")
+
+	default:
+		fmt.Println("case 3")
+		downloader.Download(flags.Url)
+	}
 }
