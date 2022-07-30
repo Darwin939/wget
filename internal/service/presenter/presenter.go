@@ -25,9 +25,8 @@ func (c *CLIPresenter) ShowRequestStatus(statusCode int) {
 	if statusCode >= 200 && statusCode <= 299 {
 		fmt.Printf("sending request, awaiting response... status %v OK\n", statusCode)
 	} else {
-		fmt.Printf("sending request, awaiting response... status %v \n", statusCode, "something goes wrong")
+		fmt.Printf("sending request, awaiting response... status %v something goes wrong\n", statusCode)
 	}
-
 }
 
 func (c *CLIPresenter) ShowContentSize(contentSize int64) {
