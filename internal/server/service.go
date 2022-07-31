@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"wget/internal/service"
 	"wget/internal/service/downloader"
@@ -41,6 +42,9 @@ func (a *App) Run(ctx context.Context) {
 
 	default:
 		fmt.Println("case 3")
-		downloader.Download(flags.Url)
+		err := downloader.Download(flags.Url, flags.Path, flags.Filename)
+		if err != nil {
+			log.Printf("ERROR: ", err)
+		}
 	}
 }
