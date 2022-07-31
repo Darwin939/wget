@@ -13,9 +13,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"wget/internal/service"
+	"wget/internal/service/client"
 	"wget/internal/service/parser"
 
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/mxk/go-flowrate/flowrate"
 )
 
@@ -37,9 +40,11 @@ type Downloader struct {
 	Exclude      string
 
 	Presenter service.Presenter
+
+	cli service.HTTPClient
 }
 
-func NewDownloader(flag *parser.Flags, presenter service.Presenter) *Downloader {
+func NewDownloader(flag *parser.Flags, presenter service.Presenter, timeout time.Duration) *Downloader {
 
 	return &Downloader{
 		Presenter:    presenter,
@@ -57,32 +62,47 @@ func NewDownloader(flag *parser.Flags, presenter service.Presenter) *Downloader 
 		Exclude:      flag.Exclude,
 		SpeedLimit:   flag.SpeedLimit,
 		IsBackground: flag.IsBackground,
+
+		cli: client.NewClient(timeout),
 		// TODO а есть удобный метод распаковки
 	}
 }
 
-func (d *Downloader) Download(url string) {
+func (d *Downloader) Download(Url, Path, FileName string) error {
 	// if is file
 	d.Presenter.ShowStartTime()
 
+	resp, err := d.cli.SendHttp1(http.MethodGet, Url, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	mtype, err := mimetype.DetectReader(resp.Body)
+	if err != nil {
+		return err
+	}
+	if mtype.Is("text/html") {
+		FileName = "index.html"
+	}
+
 	if d.IsBackground {
-		
+
 	}
 
 	if !d.IsFilename { // -O
-		_, filename := path.Split(url)
+		_, filename := path.Split(Url)
 		d.Filename = filename
 	}
-	log.Printf("create file: %v\n", filepath.Join(d.Path, d.Filename))
-	file, err := os.Create(filepath.Join(d.Path, d.Filename))
+	log.Printf("create file: %v\n", filepath.Join(Path, FileName))
+	file, err := os.Create(filepath.Join(Path, FileName))
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 
 	defer file.Close()
 
-	resp := d.get(url)
+	resp = d.get(Url)
 
 	d.Presenter.ShowRequestStatus(resp.StatusCode)
 	d.Presenter.ShowContentSize(resp.ContentLength)
@@ -96,24 +116,22 @@ func (d *Downloader) Download(url string) {
 		speedLimit, err := calculateSpeedLimit(d.SpeedLimit)
 
 		if err != nil {
-			log.Println(err)
-			return
+			return err
 		}
 		body = flowrate.NewReader(resp.Body, speedLimit)
 	}
 
 	_, err = io.Copy(io.MultiWriter(file, d.Presenter.GetBar(resp.ContentLength)), body)
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
 	d.Presenter.ShowName(d.generateFileFullPath())
 
 	if err != nil {
-		log.Println(err)
-		return
+		return err
 	}
-	d.Presenter.ShowFinishTime([]string{url})
+	d.Presenter.ShowFinishTime([]string{Url})
+	return nil
 }
 
 func (d *Downloader) get(url string) *http.Response {
@@ -190,7 +208,7 @@ func (d *Downloader) DownloadFromFile() {
 		go func(url string) {
 			defer wg.Done()
 			// d.Url = urls[i]
-			d.Download(url)
+			d.Download(url, d.Path, d.Filename)
 		}(urls[i])
 	}
 	wg.Wait()
