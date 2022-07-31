@@ -2,7 +2,6 @@ package mirrorer
 
 import (
 	"fmt"
-	"github.com/gabriel-vasile/mimetype"
 	"io"
 	"net/http"
 	"os"
@@ -43,12 +42,47 @@ func (m *Mirrorer) CreateMirror() error {
 	if err := os.MkdirAll(folders, os.ModePerm); err != nil {
 		return err
 	}
-	if err := m.download(url, folders, filename); err != nil {
+	//if err := m.download(url, folders, filename); err != nil {
+	//	return err
+	//}
+	if err := m.parse(url, folders, filename); err != nil {
 		return err
 	}
 	return nil
 }
-func (m *Mirrorer) download(url, path, name string) error {
+
+func (m *Mirrorer) parse(url, filePath, name string) error {
+	err := m.download(url, filePath, name)
+	if err != nil {
+		return err
+	}
+	file, err := os.Open(path.Join(filePath, "index.html"))
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+	b, err := io.ReadAll(file)
+	if err != nil {
+		return err
+	}
+	//fmt.Println("b:", string(b))
+	localPaths := FindPath(b)
+	fmt.Println(localPaths)
+	dir, _ := path.Split(url)
+	for _, localPath := range localPaths {
+		ldir, lfile := path.Split(localPath)
+		err = m.download(dir+localPath, filePath+ldir, lfile)
+		if err != nil {
+			return err
+		}
+	}
+
+	//doc.Find("link").
+	return nil
+}
+
+func (m *Mirrorer) download(url, filePath, name string) error {
 	m.presenter.ShowStartTime()
 	resp, err := m.cli.SendHttp1(http.MethodGet, url, nil)
 	if err != nil {
@@ -57,18 +91,17 @@ func (m *Mirrorer) download(url, path, name string) error {
 	defer resp.Body.Close()
 	m.presenter.ShowRequestStatus(resp.StatusCode)
 	m.presenter.ShowContentSize(resp.ContentLength)
-	mtype, err := mimetype.DetectReader(resp.Body)
-	if err != nil {
-		return err
-	}
-	if mtype.Is("text/html") {
+	p := path.Join(filePath, name)
+	stat, err := os.Stat(p)
+
+	if err == nil && stat.IsDir() {
 		name = "index.html"
 	}
-
-	file, err := os.Create(fmt.Sprintf("%s/%s", path, name))
+	file, err := os.Create(path.Join(filePath, name))
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	_, err = io.Copy(io.MultiWriter(file, m.presenter.GetBar(resp.ContentLength)), resp.Body)
 	if err != nil {

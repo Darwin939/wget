@@ -40,3 +40,17 @@ func validateURL(url string) string {
 	}
 	return url
 }
+
+func FindPath(inp []byte) []string {
+	re := regexp.MustCompile(`url\(['"]\.?(\S+)['"]\)`)
+	resRegex := re.FindAllSubmatch(inp, -1)
+	//fmt.Println(len(resRegex))
+	var res []string
+	for _, v := range resRegex {
+		if len(v) > 1 {
+			//fmt.Println("v1:", string(v[1]))
+			res = append(res, string(v[1]))
+		}
+	}
+	return res
+}
