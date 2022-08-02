@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 	"wget/internal/service"
 )
 
@@ -33,19 +34,11 @@ func (m *Mirrorer) CreateMirror() error {
 	m.initRegex()
 	url := validateURL(m.url)
 	filePath := convertToPath(url)
-	dir, filename := path.Split(filePath)
-	//fmt.Println("dir:", dir, "filename:", filename)
-	var folders = dir
-	if dir == "" {
-		folders = filename
-	}
-	if err := os.MkdirAll(folders, os.ModePerm); err != nil {
+
+	if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
 		return err
 	}
-	//if err := m.download(url, folders, filename); err != nil {
-	//	return err
-	//}
-	if err := m.parse(url, folders, filename); err != nil {
+	if err := m.parse(url, filePath, "index.html"); err != nil {
 		return err
 	}
 	return nil
@@ -69,10 +62,10 @@ func (m *Mirrorer) parse(url, filePath, name string) error {
 	//fmt.Println("b:", string(b))
 	localPaths := FindPath(b)
 	fmt.Println(localPaths)
-	dir, _ := path.Split(url)
 	for _, localPath := range localPaths {
-		ldir, lfile := path.Split(localPath)
-		err = m.download(dir+localPath, filePath+ldir, lfile)
+		localPath := strings.TrimPrefix(localPath, url)
+		fmt.Println("65url: ", url+"/"+localPath)
+		err = m.download(url+"/"+localPath, filePath, localPath)
 		if err != nil {
 			return err
 		}
@@ -91,12 +84,6 @@ func (m *Mirrorer) download(url, filePath, name string) error {
 	defer resp.Body.Close()
 	m.presenter.ShowRequestStatus(resp.StatusCode)
 	m.presenter.ShowContentSize(resp.ContentLength)
-	p := path.Join(filePath, name)
-	stat, err := os.Stat(p)
-
-	if err == nil && stat.IsDir() {
-		name = "index.html"
-	}
 	file, err := os.Create(path.Join(filePath, name))
 	if err != nil {
 		return err
