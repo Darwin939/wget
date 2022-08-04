@@ -35,9 +35,9 @@ func (m *Mirrorer) CreateMirror() error {
 	url := validateURL(m.url)
 	filePath := convertToPath(url)
 
-	if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
-		return err
-	}
+	//if err := os.MkdirAll(filePath, os.ModePerm); err != nil {
+	//	return err
+	//}
 	if err := m.parse(url, filePath, "index.html"); err != nil {
 		return err
 	}
@@ -63,9 +63,13 @@ func (m *Mirrorer) parse(url, filePath, name string) error {
 	localPaths := FindPath(b)
 	fmt.Println(localPaths)
 	for _, localPath := range localPaths {
-		localPath := strings.TrimPrefix(localPath, url)
-		fmt.Println("65url: ", url+"/"+localPath)
-		err = m.download(url+"/"+localPath, filePath, localPath)
+		localPath = strings.TrimPrefix(localPath, url)
+		if ContainsProto(localPath) {
+			continue
+		}
+
+		fmt.Println("65url: ", url+localPath)
+		err = m.download(url+localPath, filePath, localPath)
 		if err != nil {
 			return err
 		}
@@ -82,8 +86,15 @@ func (m *Mirrorer) download(url, filePath, name string) error {
 		return err
 	}
 	defer resp.Body.Close()
+	fmt.Println("filePath:", filePath, "name: ", name)
+	dir, _ := path.Split(filePath + name)
+	fmt.Println("dir:", dir)
+	if err = os.MkdirAll(dir, os.ModePerm); err != nil {
+		return err
+	}
 	m.presenter.ShowRequestStatus(resp.StatusCode)
 	m.presenter.ShowContentSize(resp.ContentLength)
+	fmt.Println("91path:", path.Join(filePath, name))
 	file, err := os.Create(path.Join(filePath, name))
 	if err != nil {
 		return err
