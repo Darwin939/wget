@@ -2,8 +2,7 @@ package mirrorer
 
 import (
 	"fmt"
-	"io"
-	"net/http"
+	"github.com/PuerkitoBio/goquery"
 	"os"
 	"path"
 	"strings"
@@ -16,17 +15,16 @@ type Mirrorer struct {
 	url           string
 	excluded      []string
 	reject        []string
-	cli           service.HTTPClient
+	downloader    service.Downloader
 	presenter     service.Presenter
 }
 
-func NewMirrorer(cli service.HTTPClient, presenter service.Presenter, url string, excluded, reject []string) *Mirrorer {
+func NewMirrorer(downloader service.Downloader, url string, excluded, reject []string) *Mirrorer {
 	return &Mirrorer{
-		excluded:  excluded,
-		reject:    reject,
-		url:       url,
-		cli:       cli,
-		presenter: presenter,
+		excluded:   excluded,
+		downloader: downloader,
+		reject:     reject,
+		url:        url,
 	}
 }
 
@@ -45,31 +43,58 @@ func (m *Mirrorer) CreateMirror() error {
 }
 
 func (m *Mirrorer) parse(url, filePath, name string) error {
-	err := m.download(url, filePath, name)
+
+	err := m.downloader.Download(url, filePath, name)
 	if err != nil {
 		return err
 	}
+	//err := m.download(url, filePath, name)
+	//if err != nil {
+	//	return err
+	//}
 	file, err := os.Open(path.Join(filePath, "index.html"))
 	if err != nil {
 		return err
 	}
-
+	//
 	defer file.Close()
-	b, err := io.ReadAll(file)
+
+	doc, err := goquery.NewDocumentFromReader(file)
 	if err != nil {
 		return err
 	}
-	//fmt.Println("b:", string(b))
-	localPaths := FindPath(b)
-	fmt.Println(localPaths)
+	selection := doc.Find("style")
+	localPaths := FindPath(selection.Text())
+	selectors := map[string]string{
+		"link":   "href",
+		"img":    "src",
+		"a":      "href",
+		"script": "src",
+	}
+	for selector, attr := range selectors {
+		doc.Find(selector).Each(func(i int, selection *goquery.Selection) {
+			val, exists := selection.Attr(attr)
+			if exists {
+				//fmt.Println("href:", val)
+				if isLocal, localURL := isLocalPath(val); isLocal {
+					localPaths = append(localPaths, localURL)
+				}
+			}
+		})
+	}
+
+	fmt.Println("localPaths:", localPaths)
 	for _, localPath := range localPaths {
 		localPath = strings.TrimPrefix(localPath, url)
 		if ContainsProto(localPath) {
 			continue
 		}
+		localFilePath := filePath
+		fmt.Println("91url:", url, "filepath:", localFilePath)
+		dir, filename := path.Split(localPath)
 
-		fmt.Println("65url: ", url+localPath)
-		err = m.download(url+localPath, filePath, localPath)
+		localFilePath = path.Join(localFilePath, dir)
+		err = m.downloader.Download(url+localPath, localFilePath, filename)
 		if err != nil {
 			return err
 		}
@@ -80,31 +105,31 @@ func (m *Mirrorer) parse(url, filePath, name string) error {
 }
 
 func (m *Mirrorer) download(url, filePath, name string) error {
-	m.presenter.ShowStartTime()
-	resp, err := m.cli.SendHttp1(http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	fmt.Println("filePath:", filePath, "name: ", name)
-	dir, _ := path.Split(filePath + name)
-	fmt.Println("dir:", dir)
-	if err = os.MkdirAll(dir, os.ModePerm); err != nil {
-		return err
-	}
-	m.presenter.ShowRequestStatus(resp.StatusCode)
-	m.presenter.ShowContentSize(resp.ContentLength)
-	fmt.Println("91path:", path.Join(filePath, name))
-	file, err := os.Create(path.Join(filePath, name))
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+	//m.presenter.ShowStartTime()
+	//resp, err := m.cli.SendHttp1(http.MethodGet, url, nil)
+	//if err != nil {
+	//	return err
+	//}
+	//defer resp.Body.Close()
+	//fmt.Println("filePath:", filePath, "name: ", name)
+	//dir, _ := path.Split(filePath + name)
+	//fmt.Println("dir:", dir)
+	//if err = os.MkdirAll(dir, os.ModePerm); err != nil {
+	//	return err
+	//}
+	//m.presenter.ShowRequestStatus(resp.StatusCode)
+	//m.presenter.ShowContentSize(resp.ContentLength)
+	//fmt.Println("91path:", path.Join(filePath, name))
+	//file, err := os.Create(path.Join(filePath, name))
+	//if err != nil {
+	//	return err
+	//}
+	//defer file.Close()
 
-	_, err = io.Copy(io.MultiWriter(file, m.presenter.GetBar(resp.ContentLength)), resp.Body)
-	if err != nil {
-		return err
-	}
+	//_, err = io.Copy(io.MultiWriter(file, m.presenter.GetBar(resp.ContentLength)), resp.Body)
+	//if err != nil {
+	//	return err
+	//}
 	return nil
 }
 

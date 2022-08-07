@@ -7,7 +7,7 @@ import (
 )
 
 type Downloader interface {
-	Download()
+	Download(Url, Path, FileName string) error
 }
 
 type Presenter interface {

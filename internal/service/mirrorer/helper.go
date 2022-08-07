@@ -41,33 +41,31 @@ func validateURL(url string) string {
 	return url
 }
 
-func FindPath(inp []byte) []string {
-	//re := regexp.MustCompile(`(url\(['"]\.?(\S+)['"]\))|(href=\'(\w+\:\/\/\S+)\') |(src=\'(\S+)\')`)
-	//re := regexp.MustCompile(`(url\(['"]\.?(?P<url0>\S+)['"]\))|(href=\'(?P<url1>\w+\:\/\/\S+)\') |(src=\'(?P<url2>\S+)\')`)
-	//re := regexp.MustCompile(`(url\(['"]\.?(?P<url0>\S+)['"]\))|(href=\'(?P<url1>\w+\:\/\/\S+)\') |(src=\'(?P<url2>\S+)\') |(src=['"](?P<url3>\S+)['"])`)
-	re := regexp.MustCompile(`(url\(['"]\.?(?P<url0>\S+)['"]\))|(href=\'(?P<url1>\w+\:\/\/\S+)\')|(src=\'(?P<url2>\S+)\')|(src=['"](?P<url3>\S+)['"])|(href=['"](?P<url4>[\w/\.]+)['"])`)
-
-	resRegex := re.FindAllSubmatch(inp, -1)
-	//fmt.Println(len(resRegex))
+func FindPath(inp string) []string {
+	re := regexp.MustCompile(`(url\(['"]\.?(?P<url0>\/\S+)['"]\))`)
+	resRegex := re.FindAllStringSubmatch(inp, -1)
 	var res []string
-	for _, v := range resRegex {
-		//fmt.Println(re.SubexpIndex("url0"), re.SubexpIndex("url1"), re.SubexpIndex("url2"), re.SubexpIndex("url3"), re.SubexpIndex("url4"))
-		switch {
-		case len(v) > 10 && len(v[10]) != 0:
-			res = append(res, string(v[10]))
-		case len(v) > 8 && len(v[8]) != 0:
-			fmt.Println(string(v[8]))
-			res = append(res, string(v[8]))
-		case len(v) >= 7 && len(v[6]) != 0:
-			res = append(res, string(v[6]))
-		case len(v) >= 5 && len(v[4]) != 0:
-			res = append(res, string(v[4]))
-		case len(v) >= 3 && len(v[2]) != 0:
-			res = append(res, string(v[2]))
-		}
 
+	for _, v := range resRegex {
+		if len(v) > 2 && v[2] != "" {
+			res = append(res, v[2])
+		}
 	}
 	return res
+}
+
+func isLocalPath(url string) (isLocal bool, path string) {
+	re := regexp.MustCompile(`^(https?\:)?\/\/`)
+
+	if re.MatchString(url) {
+		return false, ""
+	}
+	re = regexp.MustCompile(`\.?\/?(?P<url>\w[\w\-\.]+(\/[\w\-\.]+)*)`)
+	res := re.FindStringSubmatch(url)
+	if len(res) > 1 && res[1] != "" {
+		return true, res[1]
+	}
+	return true, url
 }
 
 func ContainsProto(url string) bool {

@@ -15,6 +15,7 @@ type Flags struct {
 	IsMirror     bool   // flag --mirror
 	IsReject     bool   // flag --reject= -R=
 	IsExclude    bool   // flag --exclude= -X=
+	IsBackground bool   // flag -b
 	Filename     string
 	Path         string
 	SpeedLimit   string
@@ -39,6 +40,7 @@ func NewFlags(args []string) *Flags {
 		SaveFrom:     get_SaveFrom(args),
 		Reject:       get_Reject(args),
 		Exclude:      get_Exclude(args),
+		IsBackground: getBackground(args) != "",
 	}
 }
 
@@ -130,5 +132,14 @@ func get_Exclude(args []string) string {
 		}
 	}
 
+	return ""
+}
+
+func getBackground(args []string) string {
+	for _, v := range args {
+		if strings.HasPrefix(v, "-b=") {
+			return v[3:]
+		}
+	}
 	return ""
 }
