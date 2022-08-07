@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
-	"wget/internal/service/client"
+	downloader2 "wget/internal/service/downloader"
 	"wget/internal/service/mirrorer"
+	"wget/internal/service/parser"
 	"wget/internal/service/presenter"
 )
 
@@ -14,9 +14,11 @@ func main() {
 		fmt.Println("arg should count >=2")
 		return
 	}
-	present := presenter.NewCLIPresenter()
-	cli := client.NewClient(15 * time.Second)
-	service := mirrorer.NewMirrorer(cli, present, os.Args[1], nil, nil)
+	flags := parser.NewFlags(os.Args)
+	presenter := presenter.NewCLIPresenter()
+	downloader := downloader2.NewDownloader(flags, presenter, 0)
+
+	service := mirrorer.NewMirrorer(downloader, os.Args[1], nil, nil)
 	if err := service.CreateMirror(); err != nil {
 		fmt.Println(err)
 		return
