@@ -86,9 +86,6 @@ func (m *Mirrorer) parse(url, filePath, name string) error {
 	fmt.Println("localPaths:", localPaths)
 	for _, localPath := range localPaths {
 		localPath = strings.TrimPrefix(localPath, url)
-		if ContainsProto(localPath) {
-			continue
-		}
 		localFilePath := filePath
 		fmt.Println("91url:", url, "filepath:", localFilePath)
 		dir, filename := path.Split(localPath)
