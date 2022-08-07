@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"wget/internal/config"
 	downloader2 "wget/internal/service/downloader"
 	"wget/internal/service/mirrorer"
 	"wget/internal/service/parser"
@@ -17,8 +18,8 @@ func main() {
 	flags := parser.NewFlags(os.Args)
 	presenter := presenter.NewCLIPresenter()
 	downloader := downloader2.NewDownloader(flags, presenter, 0)
-
-	service := mirrorer.NewMirrorer(downloader, os.Args[1], nil, nil)
+	conf := config.GetConfig()
+	service := mirrorer.NewMirrorer(conf.Mirror, downloader, os.Args[1], nil, nil)
 	if err := service.CreateMirror(); err != nil {
 		fmt.Println(err)
 		return
